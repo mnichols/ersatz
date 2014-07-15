@@ -11,11 +11,20 @@ var url = require('url')
 
 module.exports = Expectation
 
-function Expectation(cfg) {
+function Expectation(cfg, opts) {
     var router = new Router()
         ,request = cfg.request || {}
     ;
+    opts = (opts || {})
     this.cfg = cfg
+    this.opts = {
+        respondFailures: false
+    }
+    for(var k in this.opts) {
+        if(opts.hasOwnProperty(k)) {
+            this.opts[k] = opts[k]
+        }
+    }
     this.request = this.cfg.request || {
         url: this.cfg.url
         ,method: this.cfg.method
@@ -61,7 +70,7 @@ Expectation.prototype.defaultFail = function(req, res, err) {
 }
 Expectation.prototype.fail = function(req, res, err) {
     var promise = new Promise(function(resolve, reject){
-        if(this.cfg.respondFailures) {
+        if(this.opts.respondFailures) {
             try {
                 var failure = this.cfg.fail || this.defaultFail(req, res, err)
                 failure.message = failure.message || (err && err.message)

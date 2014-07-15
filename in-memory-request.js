@@ -6,6 +6,14 @@ var Expectation = require('./expectation')
     ,EventEmitter  = require('events').EventEmitter
     ;
 
+function serial(promise, invocations) {
+    if(!invocations.length) {
+        return promise
+    }
+    var invocation = invocations.shift()
+    var result = invocation.call(this)
+    return result.then(serial.bind(this,result,invocations))
+}
 function Response(cfg) {
     this.url = cfg.url
     this.statusCode = 0
@@ -41,13 +49,19 @@ function InMemoryHttp(cfg){
     this.cfg= cfg || {}
     this.expectations= []
     this.verify = this.verify.bind(this)
+    this.enqueue = this.enqueue.bind(this)
+    this.flush = this.flush.bind(this)
+    this.printExpectations = this.printExpectations.bind(this)
+    this.invocations = []
 
 }
 InMemoryHttp.prototype.expect = function(cfg) {
     return new Promise(function(resolve, reject) {
         var it
         try {
-            it = new Expectation(cfg)
+            it = new Expectation(cfg, {
+                respondFailures: this.cfg.respondFailures
+            })
             this.expectations.push(it)
         } catch(err) {
             return reject(err)
@@ -55,11 +69,11 @@ InMemoryHttp.prototype.expect = function(cfg) {
         return resolve(it)
     }.bind(this))
 }
+InMemoryHttp.prototype.enqueue = function(cfg) {
+    this.invocations.push(this.invoke.bind(this,cfg))
+    return Promise.resolve(this)
+}
 InMemoryHttp.prototype.invoke = function(cfg) {
-    cfg.url = (cfg.url || this.url(cfg))
-    if(!cfg.body) {
-        cfg.body = (cfg.data ? JSON.stringify(cfg.data) : undefined)
-    }
     return new Promise(function(resolve, reject){
 
         var expectation = this.expectations.shift()
@@ -75,8 +89,10 @@ InMemoryHttp.prototype.invoke = function(cfg) {
     }.bind(this))
 }
 InMemoryHttp.prototype.flush = function(cfg) {
-    //verify expectations
-    return Promise.resolve(this)
+    var p = Promise.resolve(function(){
+
+    })
+    return serial(p,this.invocations)
 
 }
 InMemoryHttp.prototype.printExpectations = function(){

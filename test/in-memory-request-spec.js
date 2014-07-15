@@ -82,7 +82,38 @@ describe('InMemoryRequest',function(){
                 .should.be.ok
         })
     })
-    describe('when request is made with not meeting expectation',function(){
+
+    describe('when queued invocations fail upon flush',function(){
+        beforeEach(function(){
+            request.expect(fixtures.x.request,fixtures.x.response)
+        })
+        beforeEach(function(){
+            var req = copy(fixtures.x.request)
+            req.url = '/bad-url'
+            return request.enqueue(req).should.be.ok
+        })
+        it('should be rejected',function(){
+            return request.flush()
+                .should
+                .be.rejectedWith(/Expected request on url \/x, but got \/bad-url/)
+        })
+    })
+    describe('when queued invocations are not flushed',function(){
+        beforeEach(function(){
+            request.expect(fixtures.x.request,fixtures.x.response)
+        })
+        beforeEach(function(){
+            var req = copy(fixtures.x.request)
+            req.url = '/bad-url'
+            return request.enqueue(req).should.be.ok
+        })
+        it('should be rejected',function(){
+            return request.verify()
+                .should
+                .be.rejectedWith(/There are 1 requests pending:/)
+        })
+    })
+    describe('when request is made not meeting expectation',function(){
         beforeEach(function(){
             return request.expect(fixtures.x.request,fixtures.x.response)
         })
@@ -110,6 +141,18 @@ describe('InMemoryRequest',function(){
             req.headers = { 'accept':'text/plain'}
             return request.invoke(req).should
             .be.rejectedWith(/Expected request on \/x to have header accept with value application\/hal\+json/)
+        })
+
+    })
+    describe('when chaining all the things',function(){
+        it('should fail as expected',function(){
+            var req = copy(fixtures.x.request)
+            req.method = 'GET'
+            return request.expect(fixtures.x.request, fixtures.x.response)
+                .then(request.enqueue(req))
+                .then(request.flush)
+                .should
+                .be.rejectedWith(/Expected request on \/x with method POST, but got method GET/)
         })
 
     })
