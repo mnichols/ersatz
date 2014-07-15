@@ -32,6 +32,19 @@ describe('InMemoryRequest',function(){
                     ,body: JSON.stringify({name:'a'})
                 }
             }
+            ,c: {
+                request: {
+                    url: '/c'
+                    ,method: 'GET'
+                }
+                ,response: {
+                    statusCode: 200
+                    ,headers: {
+                        'content-type':'application/json'
+                    }
+                    ,body: ''
+                }
+            }
             ,x: {
                 request: {
                     url: '/x'
@@ -66,6 +79,7 @@ describe('InMemoryRequest',function(){
         it('should list expectations',function(){
             request.expect(fixtures.a.request,fixtures.a.response)
             request.expect(fixtures.x.request,fixtures.x.response)
+            request.expect(fixtures.c.request,fixtures.c.response)
             console.log(request.printExpectations())
         })
     })
@@ -85,12 +99,16 @@ describe('InMemoryRequest',function(){
 
     describe('when queued invocations fail upon flush',function(){
         beforeEach(function(){
+            request.expect(fixtures.a.request,fixtures.a.response)
             request.expect(fixtures.x.request,fixtures.x.response)
+            request.expect(fixtures.c.request,fixtures.c.response)
         })
         beforeEach(function(){
-            var req = copy(fixtures.x.request)
-            req.url = '/bad-url'
-            return request.enqueue(req).should.be.ok
+            var bad = copy(fixtures.x.request)
+            bad.url = '/bad-url'
+            return request.enqueue(fixtures.a.request)
+                .then(request.enqueue.bind(request,bad))
+                .should.be.ok
         })
         it('should be rejected',function(){
             return request.flush()

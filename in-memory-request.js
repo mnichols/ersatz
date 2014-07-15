@@ -56,6 +56,13 @@ function InMemoryHttp(cfg){
     this.invoke = this.invoke.bind(this)
 
 }
+/**
+ * Registers an {Expectation} to be asserted upon later
+ * @method expect
+ * @param {Object} req request : having a `url`, `method`, (optional) headers and (optional) body
+ * @param {Object} res response
+ * @return {Promise}
+ * */
 InMemoryHttp.prototype.expect = function(req,res) {
     var cfg = {
         request: req
@@ -74,10 +81,22 @@ InMemoryHttp.prototype.expect = function(req,res) {
         return resolve(it)
     }.bind(this))
 }
+/**
+ * Queues an `invoke` method for later `flush`
+ * @method enqueue
+ * @return {Promise} resolving `this`
+ * */
 InMemoryHttp.prototype.enqueue = function(cfg) {
     this.invocations.push(this.invoke.bind(this,cfg))
     return Promise.resolve(this)
 }
+/**
+ * Executes request against the next expectation,
+ * rejecting with appropriate `Error`, or resolving if matching
+ * @method invoke
+ * @param {Object} cfg The request to invoke
+ * @return {Promise}
+ * */
 InMemoryHttp.prototype.invoke = function(cfg) {
     return new Promise(function(resolve, reject){
 
@@ -93,13 +112,20 @@ InMemoryHttp.prototype.invoke = function(cfg) {
         req.flush()
     }.bind(this))
 }
+/**
+ * Invokes any queued invocations
+ * @method flush
+ * @return {Promise}
+ * */
 InMemoryHttp.prototype.flush = function(cfg) {
-    var p = Promise.resolve(function(){
-
-    })
+    var p = Promise.resolve(this)
     return serial(p,this.invocations)
-
 }
+/**
+ * Convenience method for printing out expectations
+ * @method printExpectations
+ * @return {String} of \n delimited expectation output
+ * */
 InMemoryHttp.prototype.printExpectations = function(){
     var expect = this.expectations.map(function(ex){
         return ex.toString()
@@ -108,6 +134,12 @@ InMemoryHttp.prototype.printExpectations = function(){
     return bullet + expect.join('\n' + bullet)
 
 }
+/**
+ * Verifies that all expectations have been met,
+ * rejecting if any remain; otherwise, resolve `this`
+ * @method verify
+ * @return {Promise}
+ * */
 InMemoryHttp.prototype.verify = function() {
     var msg = util.format('There are %s requests pending:\n%s',this.expectations.length, this.printExpectations())
     if(this.expectations.length) {

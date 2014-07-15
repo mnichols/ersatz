@@ -25,12 +25,7 @@ function Expectation(cfg, opts) {
             this.opts[k] = opts[k]
         }
     }
-    this.request = this.cfg.request || {
-        url: this.cfg.url
-        ,method: this.cfg.method
-        ,headers: this.cfg.headers
-        ,body: this.cfg.body
-    }
+    this.request = this.cfg.request
     this.response = this.cfg.response || {}
     router.addRoute(this.request.url,noop)
     Object.defineProperty(this,'router',{
@@ -160,7 +155,7 @@ Expectation.prototype.matchBody = function(req) {
                 }
 
                 var msg = util.format('Expected request on %s with body %s, but got %s'
-                    ,this.cfg.url,JSON.stringify(reqBody),JSON.stringify(result))
+                    ,this.request.url,JSON.stringify(reqBody),JSON.stringify(result))
                 return reject(new Error(msg))
             }.bind(this))
         } catch (err) {
