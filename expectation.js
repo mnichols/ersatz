@@ -47,7 +47,8 @@ Expectation.prototype.pass = function(req, res, ok) {
     res.statusCode = (statusCode || 200)
     var msg = JSON.stringify(resBody || ok  || '')
     res.write(msg)
-    return res.end()
+    res.end()
+    return Promise.resolve(res)
 }
 Expectation.prototype.defaultFail = function(req, res, err) {
     var exception = {
@@ -72,11 +73,13 @@ Expectation.prototype.fail = function(req, res, err) {
                 res.setHeader('content-type','text/plain')
                 res.statusCode = failure.statusCode
                 res.write(failure.message)
+
             } catch(err) {
                 console.error('uncaught failure',err, err.stack)
                 return reject(err.message)
             }
-            return resolve(res.end())
+            res.end()
+            return resolve(res)
         }
         return reject(err)
     }.bind(this))

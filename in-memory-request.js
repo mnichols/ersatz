@@ -119,7 +119,7 @@ InMemoryHttp.prototype.invoke = function(cfg) {
  * */
 InMemoryHttp.prototype.flush = function(cfg) {
     var p = Promise.resolve(this)
-    return serial(p,this.invocations)
+    return serial.call(this,p,this.invocations)
 }
 /**
  * Convenience method for printing out expectations
