@@ -1,0 +1,23 @@
+{
+  "name": "mock-request",
+  "version": "0.0.1",
+  "description": "Mock request/responses",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/redjack/mock-request.git"
+  },
+  "author": "",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/redjack/mock-request/issues"
+  },
+  "dependencies": {
+    "es6-promise": "~1.0.0",
+    "deep-equal": "~0.2.1",
+    "routes": "~1.1.0"
+  }
+}
