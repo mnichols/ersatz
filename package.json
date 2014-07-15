@@ -4,7 +4,7 @@
   "description": "Mock request/responses",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "./node_modules/.bin/mocha"
   },
   "repository": {
     "type": "git",
@@ -19,5 +19,10 @@
     "es6-promise": "~1.0.0",
     "deep-equal": "~0.2.1",
     "routes": "~1.1.0"
+  },
+  "devDependencies": {
+    "mocha": "~1.20.1",
+    "chai": "~1.9.1",
+    "chai-as-promised": "~4.1.1"
   }
 }

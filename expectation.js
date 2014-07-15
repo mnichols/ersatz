@@ -13,12 +13,17 @@ module.exports = Expectation
 
 function Expectation(cfg) {
     var router = new Router()
-    var parsed = url.parse(cfg.url)
-    if(parsed.host || parsed.hostname) {
-        //throw new Error('Fully-qualified urls are not matched. Prefer pathname for ' + cfg.url)
-    }
+        ,request = cfg.request || {}
+    ;
     this.cfg = cfg
-    router.addRoute(cfg.url,noop)
+    this.request = this.cfg.request || {
+        url: this.cfg.url
+        ,method: this.cfg.method
+        ,headers: this.cfg.headers
+        ,body: this.cfg.body
+    }
+    this.response = this.cfg.response || {}
+    router.addRoute(this.request.url,noop)
     Object.defineProperty(this,'router',{
         enumerable: false
         ,writable: true
@@ -27,7 +32,7 @@ function Expectation(cfg) {
     })
 }
 Expectation.prototype.pass = function(req, res, ok) {
-    var responseSpec = this.cfg.response || {}
+    var responseSpec = this.response || {}
     var statusCode = responseSpec.statusCode
         ,resBody = responseSpec.body
         ,resHeaders = responseSpec.headers || {}
@@ -42,7 +47,7 @@ Expectation.prototype.pass = function(req, res, ok) {
 }
 Expectation.prototype.defaultFail = function(req, res, err) {
     var exception = {
-        expected: this.cfg
+        expected: this.request
         ,actual: {
             url: req.url
             ,headers: req.headers
@@ -56,27 +61,32 @@ Expectation.prototype.defaultFail = function(req, res, err) {
 }
 Expectation.prototype.fail = function(req, res, err) {
     var promise = new Promise(function(resolve, reject){
-        try {
-            var failure = this.cfg.fail || this.defaultFail(req, res, err)
-            failure.message = failure.message || (err && err.message)
-            res.setHeader('content-type','text/plain')
-            res.statusCode = failure.statusCode
-            res.write(failure.message)
-        } catch(err) {
-            console.error('uncaught failure',err, err.stack)
-            return reject(err.message)
+        if(this.cfg.respondFailures) {
+            try {
+                var failure = this.cfg.fail || this.defaultFail(req, res, err)
+                failure.message = failure.message || (err && err.message)
+                res.setHeader('content-type','text/plain')
+                res.statusCode = failure.statusCode
+                res.write(failure.message)
+            } catch(err) {
+                console.error('uncaught failure',err, err.stack)
+                return reject(err.message)
+            }
+            return resolve(res.end())
         }
-        return resolve(res.end())
+        return reject(err)
     }.bind(this))
     return promise
 }
 
 Expectation.prototype.matchMethod = function(req) {
+    var expected = this.request
     var promise = new Promise(function(resolve, reject){
-        if(req.method.toUpperCase() === this.cfg.method.toUpperCase()) {
-            return resolve(this.cfg.ok)
+        var url = expected.url
+        if(req.method.toUpperCase() === expected.method.toUpperCase()) {
+            return resolve(this)
         }
-        var msg = util.format('Expected request on %s with method %s, but got method %s',this.cfg.url,this.cfg.method,req.method)
+        var msg = util.format('Expected request on %s with method %s, but got method %s',url,expected.method,req.method)
         return reject(new Error(msg))
     }.bind(this))
     return promise
@@ -86,20 +96,20 @@ Expectation.prototype.matchUrl = function(req) {
         if(!!this.router.match(req.url)) {
             return resolve(this)
         }
-        var msg = util.format('Expected request on url %s, but got %s',this.cfg.url,req.url)
+        var msg = util.format('Expected request on url %s, but got %s',this.request.url,req.url)
         return reject(new Error(msg))
     }.bind(this))
     return promise
 }
 Expectation.prototype.matchHeaders = function(req) {
     var promise = new Promise(function(resolve, reject){
-        var reqHeaders = (this.cfg.request ? this.cfg.request.headers : {})
+        var reqHeaders = this.request.headers
         for(var k in reqHeaders) {
             var key = k.toLowerCase()
             //node lowercases incoming headers
             var actual = req.headers[key]
             if(actual !== reqHeaders[key]) {
-                var msg = util.format('Expected request on url %s to have header %s with value %s',req.url,k,reqHeaders[k])
+                var msg = util.format('Expected request on %s to have header %s with value %s',req.url,k,reqHeaders[k])
                 return reject(new Error(msg))
             }
         }
@@ -110,8 +120,8 @@ Expectation.prototype.matchHeaders = function(req) {
 Expectation.prototype.matchBody = function(req) {
     var promise = new Promise(function(resolve, reject){
         var method = req.method.toLowerCase()
-            ,reqBody = (this.cfg.request && this.cfg.request.body)
-            ,isJson = (req.headers['accept'] || '').indexOf('json') > -1
+            ,reqBody = this.request.body
+            ,isJson = req.headers && (req.headers['accept'] || '').indexOf('json') > -1
         var writable = [ 'post', 'patch', 'put']
         if(writable.indexOf(method) < 0) {
             return resolve(this)
@@ -140,7 +150,8 @@ Expectation.prototype.matchBody = function(req) {
                     return resolve(this)
                 }
 
-                var msg = util.format('Expected data on %s with data %s, but got %s',this.cfg.url,JSON.stringify(reqBody),JSON.stringify(result))
+                var msg = util.format('Expected request on %s with body %s, but got %s'
+                    ,this.cfg.url,JSON.stringify(reqBody),JSON.stringify(result))
                 return reject(new Error(msg))
             }.bind(this))
         } catch (err) {
@@ -164,7 +175,11 @@ Expectation.prototype.match = function(req, res) {
             ,this.fail.bind(this,req,res))
 }
 Expectation.prototype.toString = function(){
-    return util.format('URL: %s, METHOD: %s',this.cfg.url, this.cfg.method)
+    return util.format('%s %s, body: %s, headers: %s'
+        , this.request.method
+        , this.request.url
+        , JSON.stringify(this.request.headers)
+        , JSON.stringify(this.request.body))
 }
 
 

@@ -6,7 +6,6 @@ var Expectation = require('./expectation')
     ,EventEmitter  = require('events').EventEmitter
     ;
 
-var expectations = []
 function Response(cfg) {
     this.url = cfg.url
     this.statusCode = 0
@@ -38,7 +37,10 @@ Request.prototype.flush = function(){
     this.emit('end')
 }
 
-function InMemoryHttp(){
+function InMemoryHttp(cfg){
+    this.cfg= cfg || {}
+    this.expectations= []
+    this.verify = this.verify.bind(this)
 
 }
 InMemoryHttp.prototype.expect = function(cfg) {
@@ -46,12 +48,12 @@ InMemoryHttp.prototype.expect = function(cfg) {
         var it
         try {
             it = new Expectation(cfg)
-            expectations.push(it)
+            this.expectations.push(it)
         } catch(err) {
             return reject(err)
         }
         return resolve(it)
-    })
+    }.bind(this))
 }
 InMemoryHttp.prototype.invoke = function(cfg) {
     cfg.url = (cfg.url || this.url(cfg))
@@ -59,7 +61,8 @@ InMemoryHttp.prototype.invoke = function(cfg) {
         cfg.body = (cfg.data ? JSON.stringify(cfg.data) : undefined)
     }
     return new Promise(function(resolve, reject){
-        var expectation = expectations.shift()
+
+        var expectation = this.expectations.shift()
 
         if(!expectation) {
             var msg = util.format('Unknown request for %s with method %s',req.url,req.method)
@@ -72,6 +75,23 @@ InMemoryHttp.prototype.invoke = function(cfg) {
     }.bind(this))
 }
 InMemoryHttp.prototype.flush = function(cfg) {
+    //verify expectations
+    return Promise.resolve(this)
 
+}
+InMemoryHttp.prototype.printExpectations = function(){
+    var expect = this.expectations.map(function(ex){
+        return ex.toString()
+    },this)
+    var bullet = '\u25B8 '
+    return bullet + expect.join('\n' + bullet)
+
+}
+InMemoryHttp.prototype.verify = function() {
+    var msg = util.format('There are %s requests pending:\n%s',this.expectations.length, this.printExpectations())
+    if(this.expectations.length) {
+        return Promise.reject(new Error(msg))
+    }
+    return Promise.resolve(this)
 }
 module.exports = InMemoryHttp
