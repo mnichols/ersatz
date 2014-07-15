@@ -14,12 +14,16 @@ function serial(promise, invocations) {
     var result = invocation.call(this)
     return result.then(serial.bind(this,result,invocations))
 }
+function its(it, type) {
+    return toString.call(it) == '[object ' + type + ']'
+}
 function Response(cfg) {
     this.url = cfg.url
     this.statusCode = 0
     this.headers = {}
     this.body = undefined
     this.cfg = cfg
+    this.response = cfg.response
 
 }
 Response.prototype.setHeader = function(k,v) {
@@ -41,7 +45,8 @@ function Request(cfg) {
 }
 Request.prototype = new EventEmitter
 Request.prototype.flush = function(){
-    this.emit('data',this.data || '')
+    var data = (its(this.data,'String') ? this.data : JSON.stringify(this.data))
+    this.emit('data',data || '')
     this.emit('end')
 }
 
@@ -108,8 +113,16 @@ InMemoryHttp.prototype.invoke = function(cfg) {
         }
         var req = new Request(cfg)
             ,res = new Response(expectation.cfg)
-        expectation.match(req, res).then(resolve.bind(res,res),reject)
-        req.flush()
+
+        function respond(res) {
+            return resolve(res.response)
+        }
+        expectation.match(req, res).then(respond,reject)
+        try {
+            req.flush()
+        } catch(err) {
+            reject(err)
+        }
     }.bind(this))
 }
 /**

@@ -1,6 +1,6 @@
 {
   "name": "mock-request",
-  "version": "0.0.3",
+  "version": "0.0.4",
   "description": "Mock request/responses",
   "main": "index.js",
   "scripts": {

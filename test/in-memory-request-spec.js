@@ -57,7 +57,7 @@ describe('InMemoryRequest',function(){
                 }
                 ,response: {
                     statusCode: 200
-                    ,body: JSON.stringify({ name: 'x'})
+                    ,body: { name: 'x'}
                     ,headers: {
                         'content-type': 'application/hal+json'
                     }
@@ -159,6 +159,11 @@ describe('InMemoryRequest',function(){
             req.headers = { 'accept':'text/plain'}
             return request.invoke(req).should
             .be.rejectedWith(/Expected request on \/x to have header accept with value application\/hal\+json/)
+        })
+        it('should respond when all is matching',function(){
+            var req = copy(fixtures.x.request)
+            return request.invoke(req)
+                .should.eventually.deep.equal(fixtures.x.response)
         })
 
     })
