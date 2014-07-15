@@ -56,7 +56,11 @@ function InMemoryHttp(cfg){
     this.invoke = this.invoke.bind(this)
 
 }
-InMemoryHttp.prototype.expect = function(cfg) {
+InMemoryHttp.prototype.expect = function(req,res) {
+    var cfg = {
+        request: req
+        ,response: res
+    }
     return new Promise(function(resolve, reject) {
         var it
         try {
