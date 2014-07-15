@@ -48,11 +48,12 @@ Request.prototype.flush = function(){
 function InMemoryHttp(cfg){
     this.cfg= cfg || {}
     this.expectations= []
+    this.invocations = []
     this.verify = this.verify.bind(this)
     this.enqueue = this.enqueue.bind(this)
     this.flush = this.flush.bind(this)
     this.printExpectations = this.printExpectations.bind(this)
-    this.invocations = []
+    this.invoke = this.invoke.bind(this)
 
 }
 InMemoryHttp.prototype.expect = function(cfg) {
