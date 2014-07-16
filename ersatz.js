@@ -92,6 +92,7 @@ function Ersatz() {
     this.flush= this.flush.bind(this)
     this.verify = this.verify.bind(this)
     this.match = this.match.bind(this)
+    this.enqueue = this.enqueue.bind(this)
 }
 Ersatz.prototype.expect = function(req, res) {
     try{
@@ -135,11 +136,16 @@ Ersatz.prototype.verify = function(){
     }
 }
 Ersatz.prototype.flush = function(){
-    var p = Promise.resolve(this)
-    this.invocations.forEach(function(invoke){
-        p = p.then(invoke)
-    },this)
-    return p
+    var promise = new Promise(function(resolve, reject){
+        //put it on the next tick
+        setTimeout(function(){
+            var p = Promise.resolve(this)
+            this.invocations.forEach(function(invoke){
+                p = p.then(invoke)
+            },this)
+            return p.then(resolve)
+        }.bind(this),4)
+    }.bind(this))
 }
 /**
  * Convenience method for printing out expectations
