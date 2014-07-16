@@ -143,9 +143,10 @@ Ersatz.prototype.flush = function(){
             this.invocations.forEach(function(invoke){
                 p = p.then(invoke)
             },this)
-            return p.then(resolve)
+            return p.then(resolve,reject)
         }.bind(this),4)
     }.bind(this))
+    return promise
 }
 /**
  * Convenience method for printing out expectations

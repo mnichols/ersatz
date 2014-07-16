@@ -82,7 +82,7 @@ describe('Ersatz',function(){
                 .then(function(){
                     a.body.should.eql(fixtures.a.response.body)
                     x.body.should.eql(fixtures.x.response.body)
-                }).should.be.ok
+                })
         })
     })
     describe('when at least one expected request has not been made',function(){
@@ -133,6 +133,7 @@ describe('Ersatz',function(){
         it('should be rejected',function(){
             return ersatz.flush()
                 .should
+                .eventually
                 .be.rejectedWith(/Expected request for \/x, but got \/bad-url/)
         })
     })
