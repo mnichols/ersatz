@@ -146,11 +146,11 @@ Ersatz.prototype.flush = function(){
     var promise = new Promise(function(resolve, reject){
         //put it on the next tick
         setTimeout(function(){
-            var p = Promise.resolve(this)
-            this.invocations.forEach(function(invoke){
-                p = p.then(invoke)
+            var promises = this.invocations.map(function(invoke){
+                return invoke()
             },this)
-            return p.then(resolve,reject)
+            return Promise.all(promises)
+                .then(resolve,reject)
         }.bind(this),4)
     }.bind(this))
     return promise
