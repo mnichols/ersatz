@@ -66,16 +66,16 @@ describe('Ersatz',function(){
             }
         }
     })
-    describe('when queuing requests',function(){
+    describe('when invoking requests',function(){
         it('should resolve their responses',function(){
             var a,x;
             ersatz.expect(fixtures.a.request,fixtures.a.response)
             ersatz.expect(fixtures.x.request,fixtures.x.response)
-            ersatz.enqueue(fixtures.a.request)
+            ersatz.invoke(fixtures.a.request)
                 .then(function(res){
                     a = res
                 })
-            ersatz.enqueue(fixtures.x.request)
+            ersatz.invoke(fixtures.x.request)
                 .then(function(res) {
                     x = res
                 })
