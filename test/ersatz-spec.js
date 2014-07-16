@@ -1,6 +1,7 @@
 'use strict';
 
 var Ersatz = require('../ersatz')
+    ,Promise = require('bluebird')
 describe('Ersatz',function(){
     function copy(src,dest) {
         dest = dest || {}
@@ -84,28 +85,26 @@ describe('Ersatz',function(){
                     x.body.should.eql(fixtures.x.response.body)
                 })
         })
-        it.only('should work with requests made within promises',function(done){
+        it('should work with requests made within promises',function(){
             var biz1,biz2
             ersatz.expect(fixtures.a.request,fixtures.a.response)
             ersatz.expect(fixtures.x.request,fixtures.x.response)
+            ersatz.expect(fixtures.c.request,fixtures.c.response)
             function biz(){
                 this.makeRequest = function(req){
-                    return ersatz.enqueue(req)
+                    return ersatz.invoke(req)
                 }
             }
             var biz = new biz()
-            biz.makeRequest(fixtures.a.request).then(function(res){
-                biz1 = res
-            })
-            biz.makeRequest(fixtures.x.request).then(function(res){
-                biz2 = res
-                biz2.should.eql(fixtures.x.response)
-                done()
-            })
-            ersatz.flush()
-            //biz1.should.eql(fixtures.a.response)
-            //biz2.should.eql(fixtures.x.response)
-
+            var p1 = biz.makeRequest(fixtures.a.request)
+                .should.eventually.eql(fixtures.a.response)
+            var p2 = biz.makeRequest(fixtures.x.request)
+                .should.eventually.eql(fixtures.x.response)
+            var p3 = biz.makeRequest(fixtures.c.request)
+                .then(function(res){
+                    return res.should.eql(fixtures.x.response)
+                })
+            return Promise.all([p1,p2])
         })
     })
     describe('when at least one expected request has not been made',function(){
