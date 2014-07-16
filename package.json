@@ -1,6 +1,6 @@
 {
-  "name": "mock-request",
-  "version": "0.0.4",
+  "name": "ersatz",
+  "version": "0.0.5",
   "description": "Mock request/responses",
   "main": "index.js",
   "scripts": {
@@ -8,17 +8,16 @@
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/redjack/mock-request.git"
+    "url": "https://github.com/redjack/ersatz.git"
   },
   "author": "",
   "license": "MIT",
   "bugs": {
-    "url": "https://github.com/redjack/mock-request/issues"
+    "url": "https://github.com/redjack/ersatz/issues"
   },
   "dependencies": {
     "es6-promise": "~1.0.0",
-    "deep-equal": "~0.2.1",
-    "routes": "~1.1.0"
+    "deep-equal": "~0.2.1"
   },
   "devDependencies": {
     "mocha": "~1.20.1",

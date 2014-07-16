@@ -1,10 +1,7 @@
 'use strict';
 
-var InMemory = require('..').InMemory
-    ,Promise = require('es6-promise').Promise
-    ,util = require('util')
-    ,deepEqual = require('deep-equal')
-describe('InMemoryRequest',function(){
+var Ersatz = require('../ersatz')
+describe('Ersatz',function(){
     function copy(src,dest) {
         dest = dest || {}
         for(var k in src) {
@@ -12,11 +9,9 @@ describe('InMemoryRequest',function(){
         }
         return dest
     }
-    var request
-        ,ersatz
+    var ersatz
         ,fixtures
     beforeEach(function(){
-        request = new InMemory()
         ersatz = new Ersatz()
     })
     beforeEach(function(){
@@ -70,146 +65,6 @@ describe('InMemoryRequest',function(){
             }
         }
     })
-    function Expectation(req, res) {
-        this.req = req
-        this.res = res
-        if(!this.req.url) {
-            throw new Error('url is required for expectation')
-        }
-        if(!this.req.method) {
-            throw new Error('method is required for expectation')
-        }
-    }
-    Expectation.prototype.match = function(req) {
-        var matchers = [
-            this.matchUrl
-            ,this.matchMethod
-            ,this.matchHeaders
-            ,this.matchBody
-        ]
-        var promises = matchers.map(function(m){
-            return m.call(this,req)
-        },this)
-        return Promise.all(promises)
-    }
-    Expectation.prototype.matchUrl = function(req) {
-        var msg = 'Expected request for %s, but got %s'
-        if(req.url === this.req.url) {
-            return Promise.resolve(this.res)
-        }
-        var err = new Error(util.format(msg,this.req.url,req.url))
-        return Promise.reject(err)
-    }
-    Expectation.prototype.matchMethod = function(req) {
-        var msg = 'Expected request for %s with method %s, but got method %s'
-        if(req.method.toLowerCase() === this.req.method.toLowerCase()){
-            return Promise.resolve(this.res)
-        }
-
-        var err = new Error(util.format(msg,this.req.url,this.req.method,req.method))
-        return Promise.reject(err)
-    }
-    Expectation.prototype.matchBody = function(req) {
-        var expectBody = this.req.body
-            , actualBody = req.body
-        if(deepEqual(expectBody,actualBody)) {
-            return Promise.resolve(this.res)
-        }
-        var msg = util.format('Expected request for %s to have body %s, but got %s',
-                     this.req.url,JSON.stringify(expectBody,undefined,2),JSON.stringify(actualBody,undefined,2))
-        return Promise.reject(new Error(msg))
-
-    }
-    Expectation.prototype.matchHeaders = function(req) {
-        var expectHeaders = this.req.headers || {}
-            ,actualHeaders = req.headers || {}
-        ;
-
-        for(var k in expectHeaders) {
-            var key = k.toLowerCase()
-            var actual = actualHeaders[key]
-            if(actual !== expectHeaders[key]) {
-                var msg = util.format('Expected request for %s to have header %s with value %s'
-                    ,this.req.url,k,expectHeaders[k])
-                var err = new Error(msg)
-                return Promise.reject(err)
-            }
-        }
-        return Promise.resolve(this.res)
-
-    }
-
-    Expectation.prototype.toString = function(){
-        return util.format('%s %s, body: %s, headers: %s'
-            , this.req.method
-            , this.req.url
-            , JSON.stringify(this.req.headers)
-            , JSON.stringify(this.req.body))
-    }
-    function Ersatz() {
-        this.invocations = []
-        this.expectations = []
-        this.expect= this.expect.bind(this)
-        this.invoke = this.invoke.bind(this)
-        this.flush= this.flush.bind(this)
-        this.verify = this.verify.bind(this)
-    }
-    Ersatz.prototype.expect = function(req, res) {
-        this.expectations.push(new Expectation(req,res))
-    }
-    Ersatz.prototype.match = function(req, expectation) {
-        var expected = expectation.request || {}
-        var urlMsg = 'Expected request for %s, but got %s'
-        if(req.url !== expectation.request.url) {
-            throw new Error(util.format(urlMsg,req.url,expected.url))
-        }
-
-    }
-    Ersatz.prototype.invoke = function(req,resolve,reject) {
-        resolve = (resolve || Promise.resolve.bind(Promise))
-        reject = (reject || Promise.reject.bind(Promise))
-        var expectation = this.expectations.shift()
-        if(!expectation){
-            return reject(new Error('Unexpected request:' + JSON.stringify(req)))
-        }
-        return expectation.match(req)
-            .then(function(res){
-                return resolve(expectation.res)
-            })
-    }
-    Ersatz.prototype.enqueue = function(req) {
-        return new Promise(function(resolve,reject){
-            return this.invocations.push(this.invoke.bind(this,req,resolve,reject))
-        }.bind(this))
-    }
-    Ersatz.prototype.verify = function(){
-        if(this.expectations.length) {
-            var msg = util.format('There are %s pending requests:\n%s'
-                ,this.expectations.length
-                ,this.printExpectations())
-            return Promise.reject(new Error(msg))
-        }
-    }
-    Ersatz.prototype.flush = function(){
-        var p = Promise.resolve(this)
-        this.invocations.forEach(function(invoke){
-            p = p.then(invoke)
-        },this)
-        return p
-    }
-    /**
-     * Convenience method for printing out expectations
-     * @method printExpectations
-     * @return {String} of \n delimited expectation output
-     * */
-    Ersatz.prototype.printExpectations = function(){
-        var expect = this.expectations.map(function(ex){
-            return ex.toString()
-        },this)
-        var bullet = '\u25B8 '
-        return bullet + expect.join('\n' + bullet)
-
-    }
     describe('when queuing requests',function(){
         it('should resolve their responses',function(){
             var a,x;
@@ -312,7 +167,7 @@ describe('InMemoryRequest',function(){
             return ersatz.invoke(req).should
                 .be.rejectedWith(/Expected request for \/x with method POST, but got method GET/)
         })
-        it.only('should reject when wrong body',function(){
+        it('should reject when wrong body',function(){
             var req = copy(fixtures.x.request)
             req.body = {name: 'FAIL'}
             return ersatz.invoke(req).should
@@ -336,13 +191,12 @@ describe('InMemoryRequest',function(){
         it('should fail as expected',function(){
             var req = copy(fixtures.x.request)
             req.method = 'GET'
-            return request.expect(fixtures.x.request, fixtures.x.response)
-                .then(request.enqueue(req))
-                .then(request.flush)
+            return ersatz.expect(fixtures.x.request, fixtures.x.response)
+                .then(ersatz.enqueue(req))
+                .then(ersatz.flush)
                 .should
-                .be.rejectedWith(/Expected request on \/x with method POST, but got method GET/)
+                .be.rejectedWith(/Expected request for \/x with method POST, but got method GET/)
         })
-
     })
 
 })
