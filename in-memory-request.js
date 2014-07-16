@@ -86,14 +86,23 @@ InMemoryHttp.prototype.expect = function(req,res) {
         return resolve(it)
     }.bind(this))
 }
+InMemoryHttp.prototype.invocation = function(cfg, resolve, reject) {
+    return this.invoke(cfg).
+        then(function(message){
+        console.log('invoked',message, resolve.toString())
+            return resolve(message.response)
+        },reject)
+}
 /**
  * Queues an `invoke` method for later `flush`
  * @method enqueue
  * @return {Promise} resolving `this`
  * */
 InMemoryHttp.prototype.enqueue = function(cfg) {
-    this.invocations.push(this.invoke.bind(this,cfg))
-    return Promise.resolve(this)
+    var p = new Promise(function(resolve, reject){
+        this.invocations.push(this.invocation.bind(this,cfg, resolve, reject))
+    }.bind(this))
+    return p
 }
 /**
  * Executes request against the next expectation,
@@ -114,10 +123,7 @@ InMemoryHttp.prototype.invoke = function(cfg) {
         var req = new Request(cfg)
             ,res = new Response(expectation.cfg)
 
-        function respond(res) {
-            return resolve(res.response)
-        }
-        expectation.match(req, res).then(respond,reject)
+        expectation.match(req, res).then(resolve.bind(res,res),reject)
         try {
             req.flush()
         } catch(err) {
