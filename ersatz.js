@@ -128,12 +128,19 @@ Ersatz.prototype.enqueue = function(req) {
     }.bind(this))
 }
 Ersatz.prototype.verify = function(){
-    if(this.expectations.length) {
-        var msg = util.format('There are %s pending requests:\n%s'
-            ,this.expectations.length
-            ,this.printExpectations())
-        return Promise.reject(new Error(msg))
-    }
+    var promise = new Promise(function(resolve, reject){
+        setTimeout(function _verify(){
+            if(this.expectations.length) {
+                var msg = util.format('There are %s pending requests:\n%s'
+                    ,this.expectations.length
+                    ,this.printExpectations())
+                return reject(new Error(msg))
+            }
+            return resolve(this)
+        }.bind(this),4)
+
+    }.bind(this))
+    return promise
 }
 Ersatz.prototype.flush = function(){
     var promise = new Promise(function(resolve, reject){
