@@ -84,6 +84,29 @@ describe('Ersatz',function(){
                     x.body.should.eql(fixtures.x.response.body)
                 })
         })
+        it.only('should work with requests made within promises',function(done){
+            var biz1,biz2
+            ersatz.expect(fixtures.a.request,fixtures.a.response)
+            ersatz.expect(fixtures.x.request,fixtures.x.response)
+            function biz(){
+                this.makeRequest = function(req){
+                    return ersatz.enqueue(req)
+                }
+            }
+            var biz = new biz()
+            biz.makeRequest(fixtures.a.request).then(function(res){
+                biz1 = res
+            })
+            biz.makeRequest(fixtures.x.request).then(function(res){
+                biz2 = res
+                biz2.should.eql(fixtures.x.response)
+                done()
+            })
+            ersatz.flush()
+            //biz1.should.eql(fixtures.a.response)
+            //biz2.should.eql(fixtures.x.response)
+
+        })
     })
     describe('when at least one expected request has not been made',function(){
         beforeEach(function(){
