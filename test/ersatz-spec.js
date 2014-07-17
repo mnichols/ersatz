@@ -103,7 +103,7 @@ describe('Ersatz',function(){
                     //change this and see if fail!
                     res.should.eql(fixtures.c.response)
                 })
-            return Promise.all([p1,p2,p3])
+            return ersatz.flush()
         })
     })
     describe('when at least one expected request has not been flushed',function(){
