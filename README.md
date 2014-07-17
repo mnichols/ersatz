@@ -1,5 +1,8 @@
-mock-request
+ersatz
 ============
+
+Mocking http request/response pairs.
+
 
 To test:
 
