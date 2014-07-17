@@ -71,19 +71,17 @@ describe('Ersatz',function(){
             var a,x;
             ersatz.expect(fixtures.a.request,fixtures.a.response)
             ersatz.expect(fixtures.x.request,fixtures.x.response)
-            ersatz.invoke(fixtures.a.request)
+            var p1 = ersatz.invoke(fixtures.a.request)
                 .then(function(res){
                     a = res
+                    a.body.should.eql(fixtures.a.response.body)
                 })
-            ersatz.invoke(fixtures.x.request)
+            var p2 = ersatz.invoke(fixtures.x.request)
                 .then(function(res) {
                     x = res
-                })
-            return ersatz.flush()
-                .then(function(){
-                    a.body.should.eql(fixtures.a.response.body)
                     x.body.should.eql(fixtures.x.response.body)
                 })
+            return ersatz.flush()
         })
         it('should work with requests made within promises',function(){
             var biz1,biz2
@@ -102,9 +100,19 @@ describe('Ersatz',function(){
                 .should.eventually.eql(fixtures.x.response)
             var p3 = biz.makeRequest(fixtures.c.request)
                 .then(function(res){
-                    return res.should.eql(fixtures.x.response)
+                    //change this and see if fail!
+                    res.should.eql(fixtures.c.response)
                 })
-            return Promise.all([p1,p2])
+            return Promise.all([p1,p2,p3])
+        })
+    })
+    describe('when at least one expected request has not been flushed',function(){
+        beforeEach(function(){
+            return ersatz.expect(fixtures.a.request, fixtures.a.response)
+        })
+        it('should reject the verification',function(){
+            return ersatz.verify()
+                .should.be.rejectedWith(/Expectations have not been flushed. Please call `flush`/)
         })
     })
     describe('when at least one expected request has not been made',function(){
@@ -112,10 +120,22 @@ describe('Ersatz',function(){
 
             return ersatz.expect(fixtures.a.request, fixtures.a.response)
         })
-        it('should reject the flush',function(){
+        it('should reject the verification',function(){
             return ersatz.flush()
                 .then(ersatz.verify)
                 .should.be.rejectedWith(/There are 1 pending requests/)
+        })
+    })
+    describe('when all expected requests have been made',function(){
+        beforeEach(function(){
+            return ersatz.expect(fixtures.a.request, fixtures.a.response)
+        })
+        beforeEach(function(){
+            return ersatz.invoke(fixtures.a.request)
+        })
+        it('should do nothing on verification',function(){
+            return ersatz.verify()
+                .should.be.ok
         })
     })
     describe('when printing',function(){
@@ -126,54 +146,7 @@ describe('Ersatz',function(){
             console.log(ersatz.printExpectations())
         })
     })
-    describe('when all expected requests have been made',function(){
-        beforeEach(function(){
-            return ersatz.expect(fixtures.a.request, fixtures.a.response)
-        })
-        beforeEach(function(){
-            return ersatz.invoke(fixtures.a.request)
-        })
-        it('should do nothing on flush',function(){
-            return ersatz.flush()
-                .then(ersatz.verify)
-                .should.be.ok
-        })
-    })
 
-    describe('when queued invocations fail upon flush',function(){
-        beforeEach(function(){
-            ersatz.expect(fixtures.a.request,fixtures.a.response)
-            ersatz.expect(fixtures.x.request,fixtures.x.response)
-            ersatz.expect(fixtures.c.request,fixtures.c.response)
-        })
-        beforeEach(function(){
-            var bad = copy(fixtures.x.request)
-            bad.url = '/bad-url'
-            ersatz.enqueue(fixtures.a.request)
-            ersatz.enqueue(bad)
-        })
-        it('should be rejected',function(){
-            return ersatz.flush()
-                .should
-                .eventually
-                .be.rejectedWith(/Expected request for \/x, but got \/bad-url/)
-        })
-    })
-    describe('when queued invocations are not flushed',function(){
-        beforeEach(function(){
-            ersatz.expect(fixtures.x.request,fixtures.x.response)
-        })
-        beforeEach(function(){
-            var req = copy(fixtures.x.request)
-            req.url = '/bad-url'
-            return ersatz.enqueue(req).should.be.ok
-        })
-        it('should be rejected',function(){
-            return ersatz.verify()
-                .should
-                .be.rejectedWith(/There are 1 pending requests:/)
-        })
-    })
     describe('when request is made not meeting expectation',function(){
         beforeEach(function(){
             return ersatz.expect(fixtures.x.request,fixtures.x.response)
@@ -214,9 +187,9 @@ describe('Ersatz',function(){
         it('should fail as expected',function(){
             var req = copy(fixtures.x.request)
             req.method = 'GET'
-            return ersatz.expect(fixtures.x.request, fixtures.x.response)
-                .then(ersatz.enqueue(req))
-                .then(ersatz.flush)
+
+            ersatz.expect(fixtures.x.request, fixtures.x.response)
+            return ersatz.invoke(req)
                 .should
                 .be.rejectedWith(/Expected request for \/x with method POST, but got method GET/)
         })

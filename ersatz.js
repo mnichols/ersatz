@@ -25,8 +25,8 @@ Expectation.prototype.match = function(req) {
             ,this.matchBody
     ]
     var errs = matchers.map(function(m){
-        return m.call(this,req)
-    },this)
+            return m.call(this,req)
+        },this)
         .filter(function(err){
             return (err instanceof Error)
         })
@@ -34,15 +34,11 @@ Expectation.prototype.match = function(req) {
             return err.message
         })
 
-    var err = (errs.length ? new Error(errs.join('\n')) : undefined)
-    return err
+    return (errs.length ? new Error(errs.join('\n')) : undefined)
 }
 Expectation.prototype.fails = function(req) {
     var err  = this.match(req)
-    if(err) {
-        throw err
-    }
-    return this.res
+    return err
 }
 Expectation.prototype.matchUrl = function(req) {
     var msg = 'Expected request for %s, but got %s'
@@ -102,15 +98,12 @@ Expectation.prototype.toString = function(){
 }
 
 function Ersatz() {
-    this.invocations = []
     this.expectations = []
+    this.promises = []
     this.expect= this.expect.bind(this)
     this.invoke = this.invoke.bind(this)
-    this.flush= this.flush.bind(this)
     this.verify = this.verify.bind(this)
     this.match = this.match.bind(this)
-    this.enqueue = this.enqueue.bind(this)
-    this.invokeAll= this.invokeAll.bind(this)
 }
 Ersatz.prototype.expect = function(req, res) {
     try{
@@ -128,28 +121,27 @@ Ersatz.prototype.match = function(req, expectation) {
     }
 
 }
-Ersatz.prototype.invoke = function(req,resolve,reject) {
-    resolve = (resolve || Promise.resolve.bind(Promise))
-    reject = (reject || Promise.reject.bind(Promise))
-    var expectation = this.expectations.shift()
-    if(!expectation){
-        var err = new AssertionError('Unexpected request:' + JSON.stringify(req))
-        throw err
-    }
-    var failure = expectation.fails(req)
-    if(failure) {
-        return reject(failure)
-    }
-    return resolve(expectation.res)
-}
-Ersatz.prototype.enqueue = function(req) {
-    return new Promise(function(resolve,reject){
-        return this.invocations.push(this.invoke.bind(this,req,resolve,reject))
+Ersatz.prototype.invoke = function(req) {
+    var promise = new Promise(function(resolve, reject) {
+        var expectation = this.expectations.shift()
+        if(!expectation){
+            var err = new Error('Unexpected request:' + JSON.stringify(req))
+            throw err
+        }
+        var failure = expectation.fails(req)
+        if(failure) {
+            return reject(failure)
+        }
+        return resolve(expectation.res)
     }.bind(this))
+    return promise
 }
 Ersatz.prototype.verify = function(){
     var promise = new Promise(function(resolve, reject){
         if(this.expectations.length) {
+            if(!this.flushed) {
+                reject(new Error('Expectations have not been flushed. Please call `flush`.'))
+            }
             var msg = util.format('There are %s pending requests:\n%s'
                 ,this.expectations.length
                 ,this.printExpectations())
@@ -158,22 +150,6 @@ Ersatz.prototype.verify = function(){
         return resolve(this)
     }.bind(this))
     return promise
-}
-Ersatz.prototype.flush = function(){
-    var promise = new Promise(function(resolve, reject){
-        var promises = this.invocations.map(function(inv){
-            return inv()
-        },this)
-        return Promise.all(promises)
-            .then(resolve,reject)
-    }.bind(this))
-    return promise
-}
-Ersatz.prototype.invokeAll = function(){
-    var promises = this.invocations.map(function(invoke){
-        return invoke()
-    },this)
-    return Promise.all(promises)
 }
 /**
  * Convenience method for printing out expectations
@@ -187,4 +163,43 @@ Ersatz.prototype.printExpectations = function(){
     var bullet = '\u25B8 '
         return bullet + expect.join('\n' + bullet)
 
+}
+Ersatz.prototype.promise = function(promises) {
+    var args = [].slice.call(arguments)
+
+    if(args.length === 1 && Array.isArray(args[0])) {
+        return Promise.all(args[0])
+    }
+    return Promise.all(args || [])
+}
+Ersatz.prototype.isPending = function(){
+    return this.promises.filter(function(p){
+        return p.isPending()
+    }).length > 0
+
+}
+Ersatz.prototype.flush  = function(p){
+    if(this.flushing){
+        return this.flushing
+    }
+    this.flushing = new Promise(function(resolve, reject){
+        var id = setInterval(function(){
+            if(!this.isPending()){
+                clearInterval(id)
+                this.flushed = true
+                resolve(this)
+            }
+        }.bind(this),4)
+        Promise.onPossiblyUnhandledRejection(function(err){
+            if(this.flushed) {
+                console.error(err && err.message,err && err.stack)
+                return
+            }
+            var result = reject(err)
+            //clear this handler
+            Promise.onPossiblyUnhandledRejection()
+            return result
+        })
+    }.bind(this))
+    return this.flushing
 }
