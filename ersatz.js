@@ -50,11 +50,12 @@ Expectation.prototype.matchUrl = function(req) {
 }
 Expectation.prototype.matchMethod = function(req) {
     var msg = 'Expected request for %s with method %s, but got method %s'
-    if(req.method.toLowerCase() === this.req.method.toLowerCase()){
+        ,method = (req.method || 'undefined')
+    if(method.toLowerCase() === this.req.method.toLowerCase()){
         return this.res
     }
 
-    var err = new Error(util.format(msg,this.req.url,this.req.method,req.method))
+    var err = new Error(util.format(msg,this.req.url,this.req.method,method))
     return err
 }
 Expectation.prototype.matchBody = function(req) {
