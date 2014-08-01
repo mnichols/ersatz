@@ -6,7 +6,11 @@ describe('Ersatz',function(){
     function copy(src,dest) {
         dest = dest || {}
         for(var k in src) {
-            dest[k] = src[k]
+            if(typeof src[k] === 'object') {
+                dest[k] = copy(src[k])
+            } else {
+                dest[k] = src[k]
+            }
         }
         return dest
     }
@@ -178,6 +182,12 @@ describe('Ersatz',function(){
         })
         it('should respond when all is matching',function(){
             var req = copy(fixtures.x.request)
+            return ersatz.invoke(req)
+                .should.eventually.deep.equal(fixtures.x.response)
+        })
+        it('should respond when extra headers exist',function(){
+            var req = copy(fixtures.x.request)
+            req.headers['x-booze'] = 'baz'
             return ersatz.invoke(req)
                 .should.eventually.deep.equal(fixtures.x.response)
         })
