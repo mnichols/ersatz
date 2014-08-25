@@ -3,6 +3,8 @@
 var Promise = require('bluebird')
     ,util = require('util')
     ,deepEqual = require('deep-equal')
+    ,querystring = require('querystring')
+    ,url = require('url')
 ;
 
 module.exports = Ersatz
@@ -20,6 +22,7 @@ function Expectation(req, res) {
 Expectation.prototype.match = function(req) {
     var matchers = [
         this.matchUrl
+        ,this.matchParams
             ,this.matchMethod
             ,this.matchHeaders
             ,this.matchBody
@@ -42,10 +45,35 @@ Expectation.prototype.fails = function(req) {
 }
 Expectation.prototype.matchUrl = function(req) {
     var msg = 'Expected request for %s, but got %s'
-    if(req.url === this.req.url) {
+    var expectUrl = url.parse(this.req.url)
+        ,actualUrl = url.parse(req.url)
+
+    //verify all but search/querystring
+    if(expectUrl.hostname === actualUrl.hostname &&
+       expectUrl.host === actualUrl.host &&
+       expectUrl.pathname === actualUrl.pathname &&
+       expectUrl.protocol === actualUrl.protocol &&
+           expectUrl.auth === actualUrl.auth) {
         return this.res
     }
     var err = new Error(util.format(msg,this.req.url,req.url))
+    return err
+}
+Expectation.prototype.matchParams = function(req) {
+    var msg = 'Expected request for %s with params "%s", but got "%s"'
+
+    var expectParams = (this.req.params || {})
+        , actualParams = url.parse(req.url, true).query
+        , hasExpected = Object.keys(expectParams).length > 0
+        , hasActual = Object.keys(actualParams).length > 0
+
+    if(deepEqual(expectParams,actualParams)) {
+        return this.res
+    }
+    var stringify = querystring.stringify
+    expectParams = hasExpected ? stringify(expectParams) : '<NONE EXPECTED>'
+    actualParams = hasActual ? stringify(actualParams) : '<NONE RECEIVED>'
+    var err = new Error(util.format(msg,this.req.url,expectParams,actualParams))
     return err
 }
 Expectation.prototype.matchMethod = function(req) {

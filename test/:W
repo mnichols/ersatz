@@ -68,25 +68,6 @@ describe('Ersatz',function(){
                     }
                 }
             }
-            ,y: {
-                request: {
-                    url: '/y'
-                    ,method: 'POST'
-                    ,headers: {
-                        'accept': 'application/hal+json'
-                        ,'x-foo': 'bar'
-                    }
-                    ,body: {name: 'y'}
-                    ,params: { good: 'param'}
-                }
-                ,response: {
-                    statusCode: 200
-                    ,body: { name: 'y'}
-                    ,headers: {
-                        'content-type': 'application/hal+json'
-                    }
-                }
-            }
         }
     })
     describe('when invoking requests',function(){
@@ -180,6 +161,13 @@ describe('Ersatz',function(){
             return ersatz.invoke(req).should
                 .be.rejectedWith(/Expected request for \/x, but got \/bad-url/)
         })
+        it.only('should reject when wrong params',function(){
+            var req = copy(fixtures.x.request)
+            req.url = req.url + '?bad=param'
+            return ersatz.invoke(req).should
+            .be.rejectedWith(/Expected request for \/x with params <NONE EXPECTED>, but got "\?bad=param"/)
+
+        })
         it('should reject when wrong method',function(){
             var req = copy(fixtures.x.request)
             req.method = 'GET'
@@ -212,29 +200,7 @@ describe('Ersatz',function(){
         })
 
     })
-    describe('when params are mismatched',function(){
-        it('should reject when nonexistent params',function(){
-
-            ersatz.expect(fixtures.y.request,{})
-            var req = copy(fixtures.y.request)
-            req.url = req.url
-            return ersatz.invoke(req).should
-                .be.rejectedWith(/Expected request for \/y with params "good=param", but got "<NONE RECEIVED>"/)
-
-        })
-        it('should reject when wrong params',function(){
-
-            ersatz.expect(fixtures.y.request,{})
-            var req = copy(fixtures.y.request)
-            req.url = req.url + '?bad=param'
-            return ersatz.invoke(req).should
-                .be.rejectedWith(/Expected request for \/y with params "good=param", but got "bad=param"/)
-
-        })
-
-    })
     describe('when chaining all the things',function(){
-
         it('should fail as expected',function(){
             var req = copy(fixtures.x.request)
             req.method = 'GET'
