@@ -151,34 +151,25 @@ Ersatz.prototype.match = function(req, expectation) {
 
 }
 Ersatz.prototype.invoke = function(req) {
-    var promise = new Promise(function(resolve, reject) {
-        var expectation = this.expectations.shift()
-        if(!expectation){
-            var err = new Error('Unexpected request:' + JSON.stringify(req))
-            throw err
-        }
-        var failure = expectation.fails(req)
-        if(failure) {
-            return reject(failure)
-        }
-        return resolve(expectation.res)
-    }.bind(this))
-    return promise
+    var expectation = this.expectations.shift()
+    if(!expectation){
+        var err = new Error('Unexpected request:' + JSON.stringify(req))
+        throw err
+    }
+    var failure = expectation.fails(req)
+    if(failure) {
+        throw failure
+    }
+    return expectation.res
 }
 Ersatz.prototype.verify = function(){
-    var promise = new Promise(function(resolve, reject){
-        if(this.expectations.length) {
-            if(!this.flushed) {
-                reject(new Error('Expectations have not been flushed. Please call `flush`.'))
-            }
-            var msg = util.format('There are %s pending requests:\n%s'
-                ,this.expectations.length
-                ,this.printExpectations())
-            return reject(new Error(msg))
-        }
-        return resolve(this)
-    }.bind(this))
-    return promise
+    if(this.expectations.length) {
+        var msg = util.format('There are %s pending requests:\n%s'
+            ,this.expectations.length
+            ,this.printExpectations())
+        throw new Error(msg)
+    }
+    return this
 }
 /**
  * Convenience method for printing out expectations
@@ -192,14 +183,6 @@ Ersatz.prototype.printExpectations = function(){
     var bullet = '\u25B8 '
         return bullet + expect.join('\n' + bullet)
 
-}
-Ersatz.prototype.promise = function(promises) {
-    var args = [].slice.call(arguments)
-
-    if(args.length === 1 && Array.isArray(args[0])) {
-        return Promise.all(args[0])
-    }
-    return Promise.all(args || [])
 }
 Ersatz.prototype.isPending = function(){
     return this.promises.filter(function(p){
