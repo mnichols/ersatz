@@ -1,7 +1,6 @@
 'use strict';
 
-var Promise = require('bluebird')
-    ,util = require('util')
+var util = require('util')
     ,deepEqual = require('deep-equal')
     ,querystring = require('querystring')
     ,url = require('url')
@@ -138,9 +137,9 @@ Ersatz.prototype.expect = function(req, res) {
     try{
         this.expectations.push(new Expectation(req,res))
     } catch(err) {
-        return Promise.reject(err)
+        throw err
     }
-    return Promise.resolve(this)
+    return this
 }
 Ersatz.prototype.match = function(req, expectation) {
     var expected = expectation.request || {}
@@ -183,35 +182,4 @@ Ersatz.prototype.printExpectations = function(){
     var bullet = '\u25B8 '
         return bullet + expect.join('\n' + bullet)
 
-}
-Ersatz.prototype.isPending = function(){
-    return this.promises.filter(function(p){
-        return p.isPending()
-    }).length > 0
-
-}
-Ersatz.prototype.flush  = function(p){
-    if(this.flushing){
-        return this.flushing
-    }
-    this.flushing = new Promise(function(resolve, reject){
-        var id = setInterval(function(){
-            if(!this.isPending()){
-                clearInterval(id)
-                this.flushed = true
-                resolve(this)
-            }
-        }.bind(this),4)
-        Promise.onPossiblyUnhandledRejection(function(err){
-            if(this.flushed) {
-                console.error(err && err.message,err && err.stack)
-                return
-            }
-            var result = reject(err)
-            //clear this handler
-            Promise.onPossiblyUnhandledRejection()
-            return result
-        })
-    }.bind(this))
-    return this.flushing
 }
