@@ -1,7 +1,6 @@
 'use strict';
 
-var Promise = require('bluebird')
-    ,util = require('util')
+var util = require('util')
     ,deepEqual = require('deep-equal')
     ,querystring = require('querystring')
     ,url = require('url')
@@ -138,9 +137,9 @@ Ersatz.prototype.expect = function(req, res) {
     try{
         this.expectations.push(new Expectation(req,res))
     } catch(err) {
-        return Promise.reject(err)
+        throw err
     }
-    return Promise.resolve(this)
+    return this
 }
 Ersatz.prototype.match = function(req, expectation) {
     var expected = expectation.request || {}
@@ -151,34 +150,25 @@ Ersatz.prototype.match = function(req, expectation) {
 
 }
 Ersatz.prototype.invoke = function(req) {
-    var promise = new Promise(function(resolve, reject) {
-        var expectation = this.expectations.shift()
-        if(!expectation){
-            var err = new Error('Unexpected request:' + JSON.stringify(req))
-            throw err
-        }
-        var failure = expectation.fails(req)
-        if(failure) {
-            return reject(failure)
-        }
-        return resolve(expectation.res)
-    }.bind(this))
-    return promise
+    var expectation = this.expectations.shift()
+    if(!expectation){
+        var err = new Error('Unexpected request:' + JSON.stringify(req))
+        throw err
+    }
+    var failure = expectation.fails(req)
+    if(failure) {
+        throw failure
+    }
+    return expectation.res
 }
 Ersatz.prototype.verify = function(){
-    var promise = new Promise(function(resolve, reject){
-        if(this.expectations.length) {
-            if(!this.flushed) {
-                reject(new Error('Expectations have not been flushed. Please call `flush`.'))
-            }
-            var msg = util.format('There are %s pending requests:\n%s'
-                ,this.expectations.length
-                ,this.printExpectations())
-            return reject(new Error(msg))
-        }
-        return resolve(this)
-    }.bind(this))
-    return promise
+    if(this.expectations.length) {
+        var msg = util.format('There are %s pending requests:\n%s'
+            ,this.expectations.length
+            ,this.printExpectations())
+        throw new Error(msg)
+    }
+    return this
 }
 /**
  * Convenience method for printing out expectations
@@ -192,43 +182,4 @@ Ersatz.prototype.printExpectations = function(){
     var bullet = '\u25B8 '
         return bullet + expect.join('\n' + bullet)
 
-}
-Ersatz.prototype.promise = function(promises) {
-    var args = [].slice.call(arguments)
-
-    if(args.length === 1 && Array.isArray(args[0])) {
-        return Promise.all(args[0])
-    }
-    return Promise.all(args || [])
-}
-Ersatz.prototype.isPending = function(){
-    return this.promises.filter(function(p){
-        return p.isPending()
-    }).length > 0
-
-}
-Ersatz.prototype.flush  = function(p){
-    if(this.flushing){
-        return this.flushing
-    }
-    this.flushing = new Promise(function(resolve, reject){
-        var id = setInterval(function(){
-            if(!this.isPending()){
-                clearInterval(id)
-                this.flushed = true
-                resolve(this)
-            }
-        }.bind(this),4)
-        Promise.onPossiblyUnhandledRejection(function(err){
-            if(this.flushed) {
-                console.error(err && err.message,err && err.stack)
-                return
-            }
-            var result = reject(err)
-            //clear this handler
-            Promise.onPossiblyUnhandledRejection()
-            return result
-        })
-    }.bind(this))
-    return this.flushing
 }

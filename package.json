@@ -1,6 +1,6 @@
 {
   "name": "ersatz",
-  "version": "0.0.7",
+  "version": "0.1.0",
   "description": "Mock request/responses",
   "main": "index.js",
   "scripts": {
@@ -10,19 +10,16 @@
     "type": "git",
     "url": "https://github.com/redjack/ersatz.git"
   },
-  "author": "",
+  "author": "Mike Nichols <nichols.mike.s@gmail.com>",
   "license": "MIT",
   "bugs": {
     "url": "https://github.com/redjack/ersatz/issues"
   },
   "dependencies": {
-    "es6-promise": "~1.0.0",
-    "deep-equal": "~0.2.1",
-    "bluebird": "~2.2.2"
+    "deep-equal": "~0.2.1"
   },
   "devDependencies": {
     "mocha": "~1.20.1",
-    "chai": "~1.9.1",
-    "chai-as-promised": "~4.1.1"
+    "chai": "~1.9.1"
   }
 }
