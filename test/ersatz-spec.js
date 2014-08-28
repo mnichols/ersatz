@@ -180,6 +180,13 @@ describe('Ersatz',function(){
                 x = ersatz.invoke(fixtures.x.request)
                 x.body.should.eql(fixtures.x.response.body)
             })
+            it('should report how many requests have been made',function(){
+                var a;
+                ersatz.expect(fixtures.a.request,fixtures.a.response)
+                a = ersatz.invoke(fixtures.a.request)
+                ersatz.findExpectation(fixtures.a.request).requestCount.should.equal(1)
+                expect( ersatz.findExpectation({url:'/never'})).not.to.exist
+            })
             it('should throw when out of order',function(){
                 var a,x;
                 ersatz.expect(fixtures.a.request,fixtures.a.response)

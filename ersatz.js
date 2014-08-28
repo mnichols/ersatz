@@ -11,7 +11,7 @@ module.exports = Ersatz
 function Expectation(req, res) {
     this.req = req
     this.res = res
-    this.count = 0
+    this.requestCount = 0
     if(!this.req.url) {
         throw new Error('url is required for expectation')
     }
@@ -20,7 +20,7 @@ function Expectation(req, res) {
     }
 }
 Expectation.prototype.mark = function() {
-    this.count++
+    this.requestCount++
 }
 Expectation.prototype.match = function(req) {
     var matchers = [
@@ -123,7 +123,7 @@ Expectation.prototype.matchHeaders = function(req) {
 
 Expectation.prototype.toString = function(){
     return util.format('[%s requests] - %s %s, body: %s, headers: %s'
-            , this.count
+            , this.requestCount
             , this.req.method
             , this.req.url
             , JSON.stringify(this.req.headers)
@@ -169,18 +169,16 @@ Ersatz.prototype.match = function(req, expectation) {
     if(req.url !== expectation.request.url) {
         throw new Error(util.format(urlMsg,req.url,expected.url))
     }
-
 }
+/**
+ * Finds expectation, given a request
+ * @return {Expectation} if a match is found; otherwise {undefined}
+ * */
 Ersatz.prototype.findExpectation = function(req) {
-    if(this.cfg.strictOrder) {
-        //alter the internal collection
-        if(!this.invocations.length) {
-            throw new Error('invocations have not been made')
-        }
-        var expectation = this.expectations[this.invocations.length - 1]
-        return expectation
+    if(!this.expectations.length) {
+        throw new Error('Expectations have not been made.')
     }
-    var matches = this.expectations.filter(function(exp){
+    var matches = (this.expectations || []).filter(function(exp){
         return !exp.fails(req)
     })
     if(!matches.length) {
@@ -195,7 +193,12 @@ Ersatz.prototype.findExpectation = function(req) {
  * */
 Ersatz.prototype.invoke = function(req) {
     this.invocations.push(req)
-    var expectation = this.findExpectation(req)
+    var expectation;
+    if(this.cfg.strictOrder) {
+        expectation = this.expectations[(this.invocations.length - 1)]
+    } else {
+        expectation = this.findExpectation(req)
+    }
     if(!expectation){
         var err = new Error('Unexpected request:' + JSON.stringify(req))
         throw err
@@ -214,7 +217,7 @@ Ersatz.prototype.invoke = function(req) {
  * */
 Ersatz.prototype.pending  = function(){
     return this.expectations.filter(function(exp){
-        return (exp.count < 1)
+        return (exp.requestCount < 1)
     })
 }
 Ersatz.prototype.verify = function(){
