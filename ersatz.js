@@ -11,12 +11,16 @@ module.exports = Ersatz
 function Expectation(req, res) {
     this.req = req
     this.res = res
+    this.count = 0
     if(!this.req.url) {
         throw new Error('url is required for expectation')
     }
     if(!this.req.method) {
         throw new Error('method is required for expectation')
     }
+}
+Expectation.prototype.mark = function() {
+    this.count++
 }
 Expectation.prototype.match = function(req) {
     var matchers = [
@@ -118,20 +122,38 @@ Expectation.prototype.matchHeaders = function(req) {
 }
 
 Expectation.prototype.toString = function(){
-    return util.format('%s %s, body: %s, headers: %s'
+    return util.format('[%s requests] - %s %s, body: %s, headers: %s'
+            , this.count
             , this.req.method
             , this.req.url
             , JSON.stringify(this.req.headers)
             , JSON.stringify(this.req.body))
 }
 
-function Ersatz() {
+function defaultConfig(cfg,key,value) {
+    cfg[key] = ((Object.hasOwnProperty.call(cfg,key)) ? cfg[key] : value)
+    return cfg
+}
+/**
+ * The expectation container that exposes `expect`,`invoke`, and [optional] `verify`
+ * operations.
+ * @param {Object} cfg
+ *  @param {Boolean} strictOrder Throw if an request is made out of order from registration; otherwise, only throw if a match cannot be found
+ *  @param {Boolean} verifiable Keep track of requests and throw if `verify` is called but some are still pending
+ * @class Ersatz
+ **/
+function Ersatz(cfg) {
+    cfg = (cfg || {})
+    defaultConfig(cfg,'strictOrder',true)
+    defaultConfig(cfg,'verifiable',true)
+    this.cfg = cfg
     this.expectations = []
     this.promises = []
     this.expect= this.expect.bind(this)
     this.invoke = this.invoke.bind(this)
     this.verify = this.verify.bind(this)
     this.match = this.match.bind(this)
+    this.invocations = []
 }
 Ersatz.prototype.expect = function(req, res) {
     try{
@@ -149,8 +171,31 @@ Ersatz.prototype.match = function(req, expectation) {
     }
 
 }
+Ersatz.prototype.findExpectation = function(req) {
+    if(this.cfg.strictOrder) {
+        //alter the internal collection
+        if(!this.invocations.length) {
+            throw new Error('invocations have not been made')
+        }
+        var expectation = this.expectations[this.invocations.length - 1]
+        return expectation
+    }
+    var matches = this.expectations.filter(function(exp){
+        return !exp.fails(req)
+    })
+    if(!matches.length) {
+        return undefined
+    }
+    return matches[0]
+}
+/**
+ * Try to match this request against `expect`ed request/response pairs.
+ * If match fails, throw
+ * @method invoke
+ * */
 Ersatz.prototype.invoke = function(req) {
-    var expectation = this.expectations.shift()
+    this.invocations.push(req)
+    var expectation = this.findExpectation(req)
     if(!expectation){
         var err = new Error('Unexpected request:' + JSON.stringify(req))
         throw err
@@ -159,12 +204,27 @@ Ersatz.prototype.invoke = function(req) {
     if(failure) {
         throw failure
     }
+    expectation.mark()
     return expectation.res
 }
+/**
+ * Discover the expectations which are pending, meaning a request has not been
+ * made for them at least once.
+ * @method pending
+ * */
+Ersatz.prototype.pending  = function(){
+    return this.expectations.filter(function(exp){
+        return (exp.count < 1)
+    })
+}
 Ersatz.prototype.verify = function(){
-    if(this.expectations.length) {
+    if(!this.cfg.verifiable) {
+        throw new Error('This ersatz is not verifiable')
+    }
+    var pending = this.pending()
+    if(pending.length) {
         var msg = util.format('There are %s pending requests:\n%s'
-            ,this.expectations.length
+            ,pending.length
             ,this.printExpectations())
         throw new Error(msg)
     }
